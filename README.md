@@ -1,3 +1,6 @@
+# NOTES #
+ - Add a api/.env file with together.ai api key.
+
 ## Goals ##
 - Add Rags implementation to server.py
 - Apply to dockercompose ot alternative.
@@ -6,7 +9,7 @@
  - frontend/index.html should be an overlay
  - frontend/src/ contains sends the queries to servers.py
 
-## Instructions ##
+## CRAGS ##
 The api/crag_impl.ipynb contians the general jist of needs to be added to the servers.
  - Load all data.
  - Put them into a  retriever.
