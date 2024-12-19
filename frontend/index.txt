@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>React App</title>
+    <script>
+      async function fetchapi() {
+        try {
+          const response = await fetch('http://api:5000/api/greet');
+          const data = await response.json();
+          document.getElementById('greeting').innerText = data.message;
+        } catch (error) {
+          console.error("Error fetching the API:", error);
+        }
+      }
+
+      window.addEventListener("load", (event) => {
+        fetchapi();
+      });
+    </script>
+  </head>
+  <body>
+    <h1 id="greeting">Loading...</h1>
+  </body>
+</html>

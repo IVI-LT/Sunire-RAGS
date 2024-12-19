@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: DockerFile 
+    volumes:
+      - ./api:/app
+    working_dir: /app # opens /app in the new machine 
+    environment:
+      - FLASK_RUN_HOST=0.0.0.0
+    command: python server.py
+    ports:
+      - "5000:5000"
+    # image: "3-10-alpine"
+    
+  web:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/app.conf
+      ## inject this config to the existing nginx config
+    depends_on:
+      - api
