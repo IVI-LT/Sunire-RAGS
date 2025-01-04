@@ -10,6 +10,8 @@ from langchain_together import ChatTogether
 from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 ### Create Index using an the data folder:
@@ -21,7 +23,7 @@ docs = [WebBaseLoader(url).load() for url in urls]
 docs_list = [item for sublist in docs for item in sublist]
 
 text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-    chunk_size=300, chunk_overlap=50
+    chunk_size=200, chunk_overlap=50
 )
 
 doc_splits = text_splitter.split_documents(docs_list)
@@ -55,6 +57,70 @@ rag_chain = (
     | StrOutputParser()
 )
 
+
+# CRAGS implementation
+### load the retriever for relevant docs
+class GradeDocuments(BaseModel):
+    """Binary score for relevance check on retrieved documents."""
+
+    binary_score: str = Field(
+        description="Documents are relevant to the question, 'yes' or 'no'"
+    )
+
+# LLM with function call
+llm = ChatTogether(
+    model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    temperature=0,
+)
+structured_llm_grader = llm.with_structured_output(GradeDocuments)
+
+# Prompt
+system = """You are a grader assessing relevance of a retrieved document to a user question. \n 
+    If the document contains keyword(s) or semantic meaning related to the question, grade it as relevant. \n
+    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."""
+grade_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", system),
+        ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+    ]
+)
+
+retrieval_grader = grade_prompt | structured_llm_grader
+
+### Check if the documents are relevant
+### using a LLM to determine its worth
+def get_rel_docs(prompt):
+
+    docs = retriever.get_relevant_documents(prompt)
+
+    rel_docs = ''
+
+    for i in range(min(3, len(docs))):
+        doc_txt = docs[i].page_content
+        final = retrieval_grader.invoke({"question": prompt, "document": doc_txt}) 
+        print("final " + str(final)) 
+        if(str(final) == "binary_score='yes'" ):
+            rel_docs=doc_txt
+            # print(final)
+            break
+
+    return rel_docs
+
+
+### If there is not relevant top 3 docs then switch to a websearch ###
+def CRAG(prompt):
+    rel_docs = get_rel_docs(prompt)
+    stream = rag_chain.invoke({"context": rel_docs, "question": prompt})
+
+    #### NEED TO IMPLEMENT WEBSEARCH
+    # if(rel_docs != ''):
+    #     #print("here")
+    #     stream = rag_chain.invoke({"context": rel_docs, "question": question})
+    # else:
+    #     stream = web_search(question)
+    return stream
+
+
 app = Flask(__name__)
 CORS(app)
 
@@ -74,11 +140,11 @@ def chat():
         #     stream=True,
         # )
 
-        stream = rag_chain.invoke(prompt)
+        stream = CRAG(prompt)
 
         # Response_text in typed form
         for chunk in stream:
-            response_text = chunk.choices[0].delta.content or ""
+            response_text = chunk or ""
             yield response_text
 
     # Needed for typing response
