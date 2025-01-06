@@ -423,3 +423,13 @@ if __name__ == "__main__":
 # pprint(value["generation"])
 
 
+### TO-DO list ###
+
+# speed of websearch 
+## append relevant docs
+# aim to be more dynamic (appending the urls)
+
+# restrict the number of tokens used
+## use a more expensive model
+
+# commonly asked questions text documents
