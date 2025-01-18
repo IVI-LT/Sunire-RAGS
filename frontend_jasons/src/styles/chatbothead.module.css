@@ -1,0 +1,36 @@
+.chat_header
+{
+   display: flex;
+   padding: 15px,20px;
+   align-items: center;
+   justify-content: space-between;
+   background: #874a94;
+}
+
+.header_info
+{
+   display: flex;
+   gap: 10px;
+   padding: 15px 20px;
+   align-items: center;
+}
+.header_info svg
+{
+   height: 35px;
+   width: 35px;
+   padding: 6px;
+   fill:  #874a94;
+   background: #fff;
+   border-radius: 50%;
+   flex-shrink: 0;
+}
+.header_info h2
+{
+   font-size: 1.31rem;
+   font-weight: 600;
+   color: whitesmoke;
+}
+.close_button
+{
+   color: whitesmoke;  
+}

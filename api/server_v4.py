@@ -41,7 +41,6 @@ class GraphState(TypedDict):
 
 def setup_retriever():
     ### Create Index using an the data folder:
-
     file_url = open('api/data/urls/links.txt')
     ### Create Index using an the data folder:
     # Open and read the URL file
@@ -54,6 +53,7 @@ def setup_retriever():
 
     docs = [WebBaseLoader(url).load() for url in urls]
     docs_list = [item for sublist in docs for item in sublist]
+
 
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=250, chunk_overlap=40
@@ -108,8 +108,11 @@ def setup_grader():
 def setup_rewriter():
     ### Converts the question to something simpler for the model
     
-    system = """You a question re-writer that converts an input question to a better version that is optimized \n 
-     for web search. Look at the input and try to reason about the underlying semantic intent / meaning."""
+    # system = """You a question re-writer that converts an input question to a better version that is optimized \n 
+    #  for web search. Look at the input and try to reason about the underlying semantic intent / meaning."""
+    system = """You a question re-writer that converts an input question to a simpler version that is easier \n 
+     for web search. Look at the input and try to find key words that contain semantic intent / meaning. \n
+     The response should be just one sentence long."""
     re_write_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
@@ -224,13 +227,22 @@ def calculate_cosine_similarity(question, chunk):
 # returns top 3 
 def google_search(query, API_KEY, SEAERCH_ID):
     url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEAERCH_ID}&q={query}&start={1}"
+    # print("URL:", url)
     response = requests.get(url)
     if response.status_code == 200:
         results = response.json()
+        # print("RESULT:",results)
+
         searches =  results['items']
         urls = []
-        for items in searches[:3]:
-            urls.append(items['link'])
+
+        try:
+            searches = results['items']
+            for item in searches[:5]:
+                urls.append(item['link'])
+        except KeyError:
+            print("No items found in the results.")
+            return None
         return urls
     else:
         return None
@@ -250,97 +262,54 @@ def web_search(state):
     question = state["question"]
     documents = state["documents"]
 
-    ### laod 3 urls based on question
+    ## this works
+    ### load 3 urls based on question 
     # web = WebSearch(question)
     # search_urls =web.pages[:3]
 
-    ### websearch using google api
-    query = "What is cryosurgery?"
-    api_key = "AIzaSyCMpJIU5d6I-L3jZgEvvzudsPFETXeTT6I"
-    search_engine = "d2361eda72e7a43f9"
+    ## more secure/less reliable
+    ### websearch using google api (problems with question)
+    api_key = os.getenv("GOOGLE_API_KEY")
+    search_engine = os.getenv("GOOGLE_SEARCH_ID")
+    urls = google_search(question,api_key,search_engine)
 
-    search_urls = google_search(query,api_key,search_engine)
+    ### simpler but not as accurate - throws just urls into documents - sometimes the llm may not have access to these urls
+    documents.append(urls)
 
-    ### simpler but not as accurate - throws urls into documents
-    documents.append(search_urls)
+    # ## convert to texts 
+    # search_docs =[WebBaseLoader(url).load() for url in search_urls]
+    # search_docs_list =[item for sublist in search_docs for item in sublist]
 
-    ## convert to texts 
-    search_docs =[WebBaseLoader(url).load() for url in search_urls]
-    search_docs_list =[item for sublist in search_docs for item in sublist]
+    # ### add loaded urls to base_retriever, possibly better on frontend
+    # urls = [docs.metadata['source']  for docs in search_docs_list]
+    # urls = list(dict.fromkeys(urls))
 
+    # docs = [WebBaseLoader(url).load() for url in urls]
+    # docs_list = [item for sublist in docs for item in sublist]
 
-    # #just throw all the docs in  - extremely expensive
-    # documents.append(search_docs_list[:2])
-
-
-    # uses the retriever to find the most useful parts of websearch
     # text_splitter =RecursiveCharacterTextSplitter.from_tiktoken_encoder(
     #     chunk_size=200, chunk_overlap=40
     # )
+    # doc_splits = text_splitter.split_documents(docs_list)
+    # retriever.add_documents(doc_splits)
+    search_docs = []
+    ### add urls to text file, then if this is a brand new url add it to the retriever in text form:
+    for url in urls:
+        new_url = add_url_to_file(url, "api/data/urls/links.txt")
+        if new_url == True:
+            search_docs.append(WebBaseLoader(url).load())
 
-    # rag_in =text_splitter.split_documents(search_docs_list)
-
-    # ##### methods are slow, should improve #####
-
-    # ### makes the retriever again
-
-    # # indexing
-    # vectorstore = FAISS.from_documents(documents=rag_in, 
-    #                                 embedding = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
-    #                                 )
-
-    # retriever = vectorstore.as_retriever()
-    # documents = retriever.get_relevant_documents(question)
-
-    ### find the most relevant chunks using embeddings and then cosine
-    # embed_model = TogetherEmbeddings(model="togethercomputer/m2-bert-80M-8k-retrieval")
-    # question_embed = embed_model.embed_query(question)
-
-
-    # rag_in =text_splitter.split_documents(search_docs_list)
-    # document_embed =  [embed_model.embed_query(chunk.page_content) for chunk in rag_in]
-
-    # # Calculate cosine similarities
-    # similarities = calculate_cosine_similarity(question_embed, document_embed)
-    
-    # # Rank chunks based on similarity scores
-    # ranked_chunks = sorted(zip(rag_in, similarities), key=lambda x: x[1], reverse=True)
-    
-    # # Select top N chunks (e.g., top 3)
-    # documents = [chunk for chunk, score in ranked_chunks[:3]]
-
-
-    #### trying to combine both together cosine and splitter methods
-
-    # document_embeddings = []
-    # rag_in = []
-
-    # for doc in search_docs_list:
-    #     doc_chunks = text_splitter.split_documents([doc])
-    #     for chunk in doc_chunks:
-    #         document_embed =  embed_model.embed_query(chunk.page_content)
-    #         document_embeddings.append(document_embed)
-    #         rag_in.append(chunk)
-
-    ### add loaded urls to base_retriever
-    urls = [ docs.metadata['source']  for docs in search_docs_list]
-    urls = list(dict.fromkeys(urls))
-
-    docs = [WebBaseLoader(url).load() for url in urls]
-    docs_list = [item for sublist in docs for item in sublist]
+    search_docs_list =[item for sublist in search_docs for item in sublist]
 
     text_splitter =RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=200, chunk_overlap=40
     )
-    doc_splits = text_splitter.split_documents(docs_list)
+    doc_splits = text_splitter.split_documents(search_docs_list)
     retriever.add_documents(doc_splits)
-
-    ### add urls to text file:
-    for url in urls:
-        add_url_to_file(url, "api/data/urls/links.txt")
 
     return {"documents": documents, "question": question}
 
+# adds the urls to links.txt and checks if the url was not in the list
 def add_url_to_file(url, file_path):
     with open(file_path, 'r') as file:
         existing_urls = set(file.read().splitlines())
@@ -353,6 +322,9 @@ def add_url_to_file(url, file_path):
         with open(file_path, 'w') as file:
             for url in existing_urls:
                 file.write(url + '\n')
+        return True
+    else:
+        return False
 
 def decide_to_generate(state):
     """
@@ -511,8 +483,6 @@ if __name__ == "__main__":
 
 ### TO-DO list ###
 
-# speed of websearch -  through the content of the urls, perhaps switch to a weaker model here.
-## maybe use another websearch.
 ## append relevant docs - appends to retriever and to links.txt
 # aim to be more dynamic (appending the urls)
 

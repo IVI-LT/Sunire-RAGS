@@ -1,6 +1,46 @@
-Flask==2.2.2
-Flask-Cors==3.0.10
-python-dotenv==0.21.0
-together
-pyarrow==18.1.0
-numpy==1.24.0
+python server_v3.py
+pip list
+pip install -r requirements.txt
+python -v
+python -m pip install setuptools
+pip install -r requirements.txt
+python server_v3.py
+pip list
+pip install flask
+pip install flask-cors
+pip install pyarrow
+pip install numpy
+pip install together
+pip install python-dotenv
+python server_v3.py
+pip install -qU "langchain-chroma>=0.1.2"
+python server_v3.py
+pip install langchain
+python server_v3.py
+python server.py
+pip install langchain-community
+python server_v3.py
+pip install langchain_together
+python server_v3.py
+pip install langgraph
+python server_v3.py
+pip install websearch
+python server_v3.py
+pip list
+pip install googlesearch-python
+python server_v3.py
+python server_v2.py
+pip install websearch-python
+python server_v3.py
+pip install sklearn
+pip install scikit-learn
+python server_v3.py
+python server_v3.py
+python server_v3.py
+pip install faiss
+pip install faiss-gpu
+pip install faiss-cpu
+python server_v3.py
+pip3 install websearch-python
+pip install beasutifulsoup4
+pip install beautifulsoup4
